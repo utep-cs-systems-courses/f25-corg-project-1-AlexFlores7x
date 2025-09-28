@@ -1,156 +1,177 @@
-#include <stdio.h>
-
-#include <stdlib.h>
-
+#include "stdio.h"
+#include "stdlib.h"
 #include "tokenizer.h"
 
 
 
-// Returns true if there is a tab, space, or newline
 
-int space_char(char c) {
+// returns true if character is a space/tab
 
-  return (c == '\t' || c == ' ' || c == '\n');
-
+int space_char(char c){
+  return(c == ' ' | c == '\t')?1:0;
 }
 
 
-
-// Returns true if the character is NOT a space/tab/newline
-
-int non_space_char(char c) {
-
-  return (c != '\t' && c != ' ' && c != '\0' && c != '\n');
+// returns true if character is not a space/tab
+int non_space_char(char c){
+  return !space_char(c);
 
 }
 
-
-
-// Finds the start of the next token
-
-char *token_start(char *str) {
-
-  while (space_char(*str)) {
-
+// returns pointer to the next token
+char *token_start(char *str){
+  // continue through spaces until reached character or end of string
+  while(*str != '\0' && space_char(*str))
     str++;
-
-  }
-
-  return (*str == '\0') ? NULL : str;
+  if(*str == '\0')return NULL;
+  return str;
 
 }
 
 
 
-// Finds the first space/tab/newline after a token
+// returns the terminator of a token
+char *token_terminator(char *token){
 
-char *token_terminator(char *token) {
-
-  while (non_space_char(*token)) {
-
+  // continue through entire token until reached a delimiter
+  while(*token != '\0' && non_space_char(*token))
     token++;
-
-  }
-
   return token;
 
 }
 
+// return total tokens within a string
 
+int count_tokens(char *str){
 
-// Counts the number of tokens in the string
+  int count = 0;
 
-int count_tokens(char *str) {
+  while(*str != '\0'){   //continue through entire token
+    while(*str != '\0' && space_char(*str))  // skip over leading spaces
+      str++;
+    if(*str == '\0')break;// leave once reached end of str
+    count++;
+    while(*str != '\0' && non_space_char(*str)) // iterate over token until it ends
 
-  int num = 0;
-
-  while (*str != '\0') {
-
-    str = token_start(str);
-
-    if (str == NULL) break;
-
-    num++;
-
-    str = token_terminator(str);
+      str++;
 
   }
 
-  return num;
+  return count;
 
 }
 
 
 
-// Copies a substring of length `len` froom `inStr`
+// return copy of a string
 
-char *copy_str(char *inStr, short len) {
+char *copy_str(char *inStr, short len){
 
-  char *copyStr = (char*) malloc(len + 1);
+  char *copy_of_word = malloc(sizeof(char)*(len+1)); //allocate memory to hold size of inStr
 
-  char *pt = copyStr;
+  if(copy_of_word == NULL){   // default check case for when allocating memory
 
-  while (len > 0) {
+    printf("Failed to allocate memory");
 
-    *copyStr = *inStr;
-
-    inStr++;
-
-    copyStr++;
-
-    len--;
+    return NULL;
 
   }
 
-  *copyStr = '\0';
+  for(int i = 0; i < len; i++)   // copy each letter within origial string to the copy
 
-  return pt;
+    copy_of_word[i] = inStr[i];
+
+  copy_of_word[len] = '\0';   // zero terminate copy
+
+  return copy_of_word;
 
 }
 
 
 
-// Tokenizes the string into an array of strings
 
-char **tokenizer(char *str) {
 
-  int num = count_tokens(str);
-
-  char **pt = (char **) malloc((num + 1) * sizeof(char *));
-
-  char **spt = pt;
+char **tokenize(char* str){
 
 
 
-  while ((str = token_start(str))) {
+  int total_tokens = count_tokens(str);   // total amount of tokens within str
 
-    char *temp = token_terminator(str);
+  // intialize array of char pointers pointing to each token
 
-    int len = temp - str;
+  // defualt memory allocation check
 
-    *pt = copy_str(str, len);
+  char **token_array = malloc(sizeof(char*)*(total_tokens + 1));
 
-    pt++;
+  if(token_array == NULL){
 
-    str = temp;
+    printf("Failed to allocate token_array memmory");
+
+    return NULL;
 
   }
 
-  *pt = NULL;
+  for(int i = 0; i < total_tokens; i++){   // iterate through each token
 
-  return spt;
+    str = token_start(str);   // set pointer to next token available
+
+    char *term = token_terminator(str);
+
+    int len = term - str;  // length of current token
+
+    token_array[i] = malloc(sizeof(char)*(len+1)); // set index to a size of specific token
+
+    if(token_array[i] == NULL){   // free every allocated memory if this allocation fails
+
+      printf("Failed to allocate memory for token");
+
+      for(int x = 0; x < i; x++)
+
+	free(token_array[x]);
+
+      free(token_array);
+
+      return NULL;
+
+    }
+
+    char *copy = copy_str(str,len);  // copy of current token
+
+    for(int x = 0; x < len; x++) // copies content from current token to a pointers pointer
+
+      token_array[i][x] = copy[x];
+
+    free(copy); // free allocated memory as it is going to change for the next token
+
+    token_array[i][len] = '\0'; // end pointers pointer with a zero-terminator
+
+    str = token_start(term); // set str to point to the next token
+
+  }
+
+  token_array[total_tokens] = NULL;
+
+  return token_array;
+
+
 
 }
 
 
 
-// Prints each token
+// print each token
 
-void print_tokens(char **tokens) {
+void print_tokens(char **tokens){
 
-  for (int i = 0; tokens[i] != NULL; i++) {
 
-    printf("%s\n", tokens[i]);
+
+  int index = 0;
+
+  while(tokens[index] != NULL){   // go through entire pointer of pointers
+
+    printf("%s\n", tokens[index]);   // print current pointer that is being pointed to
+
+    index++;
 
   }
 
@@ -158,15 +179,22 @@ void print_tokens(char **tokens) {
 
 
 
-// Frees memory allocated for tokens
+// free every pointer
 
-void free_tokens(char **tokens) {
+void free_tokens(char **tokens){
 
-  for (int i = 0; tokens[i] != NULL; i++) {
 
-    free(tokens[i]);
+
+  int index = 0;
+
+  while(tokens[index] != NULL){   // go through entire pointer of pointers
+
+    free(tokens[index]);   // free allocated memory for each pointer
+
+    index++;
 
   }
-  free(tokens);
+
+  free(tokens);   // free the overall pointer
+
 }
-   

@@ -1,117 +1,163 @@
-#include <stdlib.h>
-
 #include <stdio.h>
-
-#include <string.h>
-
+#include "history.h"
 #include "tokenizer.h"
 
-#include "history.h"
-
-#define MAX 100
 
 
+// returns 1 if two pointers are of same characters, 0 if not
 
-int main() {
+int wordsMatch(char *a, char *b){
 
-  puts("Welcome");
+  int i = 0;
+
+  // iterates through both pointers
+
+  while(a[i] != '\0' || b[i] != '\0'){
+
+    // return 0 once a character does not match
+
+    if(a[i] != b[i])return 0;
+
+    i++;
+
+  }
+
+  // return 0 if strings differ in length
+
+  return(a[i] != '\0' || b[i] != '\0')?0:1;
+
+}
 
 
-
-  List *hist = init_history();
-
-  char c[MAX];
-
-  char **pt = NULL;
-
-  char option;
-
-
-
-  while (1) {
-
-    fputs("Enter an option to continue\n'q' to quit\n't' to type a phrase and use tokenizer\n'h' for history\n> ", stdout);
-
-    fflush(stdout);
-
-
-
-    option = getchar();
-
-    while (getchar() != '\n');
+int main(){
 
 
 
-    if (option == EOF) {
+  // maximum size for user input including '\0'
 
-      goto done;
+  char input[101];
+
+  List *history = init_history();
+
+  char *h_command = "history";
+
+  char *quit = "quit";
+
+  // continuously ask for input until user quits
+
+ start:
+
+  while(1){
+
+    printf("\nType a sentence to tokenize\nType '!' followed by a number to recall an item\nType q to quit\n> ");
+
+    scanf(" %[^\n]", input);
+
+    int len = 0;
+    if(input[len] == 'q'){
+      printf("Goodbye!\n");
+      goto quit;
+    }
+    // check user input size to prevent buffer overflow
+
+    while(input[len] != '\0')
+
+      len++;
+
+    if(len > 100){
+
+      printf("Input is too large\n");
+
+      goto quit;
 
     }
 
+    // tokenize input
 
+    char **token_array = tokenize(input);
 
-    switch (option) {
+    // malloc check
 
-    case 'q':
+    if(token_array == NULL){
 
-      puts("You selected quit. Thank you.");
+      printf("Failed to tokenize input string");
 
-      goto done;
-
-
-
-    case 't':
-
-      printf("Enter a string: \n");
-
-      fgets(c, MAX, stdin);
-
-      c[strcspn(c, "\n")] = 0;
-
-
-
-      printf("\nThe string has been tokenized:\n");
-
-      pt = tokenizer(c);
-
-      print_tokens(pt);
-
-      add_history(hist, c);
-
-      break;
-
-
-
-    case 'h':
-
-      printf("Log of phrases: \n");
-
-      print_history(hist);
-
-      break;
-
-
-
-    default:
-
-      printf("Unrecognized option '%c', please try again!\n", option);
+      goto quit;
 
     }
+
+    // add input to history as long as it is not a call to a history id
+
+    if(input[0] != '!')add_history(history, input);
+
+    // case user calls a string from history
+
+    if(input[0] == '!'){
+
+      int id = 0;
+      for(int i = 1; i < len; i++)
+
+	id = id * 10 + (input[i] - 48);
+
+      // return string with provided id from history
+      char *id_string = get_history(history, id);
+
+      if(id_string != NULL){
+
+	printf("%s\n", id_string);
+
+	// if string was history command, perform the command again
+
+	if(wordsMatch(id_string, h_command))goto p_history;
+
+      }
+
+      // if user enters history command, perform the command
+
+    } else if (wordsMatch(input,h_command)){
+
+      goto p_history;
+
+    }else if (wordsMatch(input, quit)){
+
+      // if user enters quit command, exit the program while freeing the token_array memory
+
+      free_tokens(token_array);
+
+      goto quit;
+
+    } else {
+
+      // print tokens
+
+      print_tokens(token_array);
+
+    }
+
+    // free the toke_array memory
+
+    free_tokens(token_array);
 
   }
 
 
 
- done:
+  // history command to print all content of the history
 
-  if (pt) {
+ p_history:
 
-    free_tokens(pt);
+  print_history(history);
 
-  }
+  goto start;
 
-  free_history(hist);
+  // quit command to exit the program
+
+ quit:
+
+  free_history(history);
 
   return 0;
 
+  // done:
+  
 }
